@@ -39,43 +39,48 @@ define([
         ajax(url, settings);
     };
 
+// Modification du bouton 'Validate' en bouton 'Submit'. Lien vers le bouton 'Validate' original
+// https://github.com/jupyter/nbgrader/blob/master/nbgrader/nbextensions/validate_assignment/main.js
+
     var add_button = function () {
         var maintoolbar = $("#maintoolbar-container");
         var btn_group = $("<div />").attr("class", "btn-group")
-        var btn = $("<button />").attr("class", "btn btn-default validate").text("Validate");
+        var btn = $("<button />").attr("class", "btn btn-default submit").text("Submit");
         btn_group.append(btn)
         maintoolbar.append(btn_group);
 
         btn.click(function (e) {
-            checkNbGraderVersion(function () {
-                var p = Jupyter.notebook.save_notebook();
-                p.then(function () {
-                    var settings = {
-                        cache : false,
-                        data : { path: Jupyter.notebook.notebook_path },
-                        type : "POST",
-                        dataType : "json",
-                        success : function (data, status, xhr) {
-                            btn.text('Validate');
-                            btn.removeAttr('disabled');
-                            validate(data, btn);
-                        },
-                        error : function (xhr, status, error) {
-                            utils.log_ajax_error(xhr, status, error);
+                var settings = {
+                    cache : false,
+                    data : {
+                        course_id: that.data.course_id,
+                        assignment_id: that.data.assignment_id
+                    },
+                    type : "POST",
+                    dataType : "json",
+                    success : function (data, status, xhr) {
+                        if (!data.success) {
+                            that.submit_error(data);
+                            button.text('Submit');
+                            button.removeAttr('disabled');
+                        } else {
+                            that.on_refresh(data, status, xhr);
                         }
-                    };
-                    btn.text('Validating...');
-                    btn.attr('disabled', 'disabled');
-                    var url = utils.url_path_join(
-                        Jupyter.notebook.base_url,
-                        'assignments',
-                        'validate'
-                    );
-                    ajax(url, settings);
-                });
+                    },
+                    error : function (xhr, status, error) {
+                        container.empty().text("Error submitting assignment.");
+                        utils.log_ajax_error(xhr, status, error);
+                    }
+                };
+                button.text('Submitting...');
+                button.attr('disabled', 'disabled');
+                var url = utils.url_path_join(
+                    that.base_url,
+                    'assignments',
+                    'submit'
+                );
+                ajax(url, settings);
             });
-        });
-    };
 
     var validate = function (data, button) {
         var body = $('<div/>').attr("id", "validation-message");
